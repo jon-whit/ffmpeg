@@ -68,17 +68,20 @@ static int mpff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
     // encode the file header info
     buf = pkt->data;
-    bytestream_put_byte(&buf, 'M');                   
+    bytestream_put_byte(&buf, 'M');                
     bytestream_put_byte(&buf, 'P');                   
     bytestream_put_byte(&buf, 'F');
     bytestream_put_byte(&buf, 'F');
-    bytestream_put_le32(&buf, avctx->width);         
+    printf("width is set to: %d\n", avctx->width);
+    bytestream_put_le32(&buf, avctx->width);      
+    printf("height is set to: %d\n", avctx->height);   
     bytestream_put_le32(&buf, avctx->height);
 
     // encode MPFF from top to bottom.
     ptr = p->data[0];
     buf = pkt->data + header_size;
     linesize = p->linesize[0];
+    printf("linesize is set to: %d\n", linesize);
     for(i = 0; i < avctx->height; i++) {
         memcpy(buf, ptr, n_bytes_per_row);
   

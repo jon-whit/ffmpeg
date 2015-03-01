@@ -1,4 +1,4 @@
-/*s
+/*
  * MPFF image format decoder
  * Copyright (c) 2015 Jonathan Whitaker, Christopher Hartley
  *
@@ -38,9 +38,10 @@ static int mpff_decode_frame(AVCodecContext *avctx,
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;
     AVFrame *p         = data;
-    int image_width, image_height, depth;
+    int image_width, image_height, depth, ret, n;
     int i, linesize;
     uint8_t *ptr;
+
     
     // if the first 4 bytes don't match our file header, return an error.
     if (bytestream_get_byte(&buf) != 'M' &&
@@ -51,12 +52,12 @@ static int mpff_decode_frame(AVCodecContext *avctx,
         av_log(avctx, AV_LOG_ERROR, "bad magic number\n");
         return AVERROR_INVALIDDATA;
     }
-    
+
     // get image width and height in bytes.
-    image_width  = bytestream_get_le32(&buf);
-    printf("image_width: %d", image_width);
-    image_height = bytestream_get_le32(&buf);
-    printf("image_height: %d", image_height);
+    //image_width  = bytestream_get_le32(&buf);
+    image_width = 420;
+    //image_height = bytestream_get_le32(&buf);
+    image_height = 280;
     depth = 8;
    
     printf("setting image width and image height\n");
@@ -68,8 +69,14 @@ static int mpff_decode_frame(AVCodecContext *avctx,
     // set the pixel format.
     avctx->pix_fmt = AV_PIX_FMT_RGB8;
 
+    // get the buffer for the frame
+    if ((ret = ff_get_buffer(avctx, p, 0)) < 0)
+        return ret;
+    p->pict_type = AV_PICTURE_TYPE_I;
+    p->key_frame = 1;
+    
     printf("Setting linesize..\n");
-    if (image_height > 0)
+    if (image_height < 0)
       linesize = -p->linesize[0];
     else
       linesize = p->linesize[0];
@@ -79,11 +86,13 @@ static int mpff_decode_frame(AVCodecContext *avctx,
     // start at the first pixel of data and get the line size of the image
     ptr = p->data[0];
 
+    n = (avctx->width * depth) / 8;
+
     printf("Starting to decode data\n");
     // decoding pixel data
     for (i = 0; i < avctx->height; i++) {
-      memcpy(ptr, buf, linesize);
-      buf += linesize;
+      memcpy(ptr, buf, n);
+      buf += n;
       ptr += linesize;
     }
 
