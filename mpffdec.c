@@ -1,4 +1,4 @@
-/*
+/*s
  * MPFF image format decoder
  * Copyright (c) 2015 Jonathan Whitaker, Christopher Hartley
  *
@@ -39,46 +39,51 @@ static int mpff_decode_frame(AVCodecContext *avctx,
     int buf_size       = avpkt->size;
     AVFrame *p         = data;
     int image_width, image_height, depth;
-    int i, n, linesize;
+    int i, linesize;
     uint8_t *ptr;
     
     // if the first 4 bytes don't match our file header, return an error.
-    if (bytestream_get_byte(&buf) != 'M' ||
-        bytestream_get_byte(&buf) != 'P' ||
-        bytestream_get_byte(&buf) != 'F' ||
+    if (bytestream_get_byte(&buf) != 'M' &&
+        bytestream_get_byte(&buf) != 'P' &&
+        bytestream_get_byte(&buf) != 'F' &&
         bytestream_get_byte(&buf) != 'F')
     {
         av_log(avctx, AV_LOG_ERROR, "bad magic number\n");
         return AVERROR_INVALIDDATA;
     }
     
-    // get image width and height as integers (representing pixels)
+    // get image width and height in bytes.
     image_width  = bytestream_get_le32(&buf);
+    printf("image_width: %d", image_width);
     image_height = bytestream_get_le32(&buf);
+    printf("image_height: %d", image_height);
     depth = 8;
    
-    printf("setting image width and image heigh\n");
-    avctx->width  = image_width;
-    printf("width set\n");
+    printf("setting image width and image height\n");
+    avctx->width  = image_width > 0 ? image_width : -image_width;
+    printf("width set to %d\n", avctx->width);
     avctx->height = image_height > 0 ? image_height : -image_height;
-    printf("height set\n");
+    printf("height set to %d\n", avctx->height);
     
-    // set the pixel format according to the bit depth.
+    // set the pixel format.
     avctx->pix_fmt = AV_PIX_FMT_RGB8;
 
-    printf("Starting at first pixel");
+    printf("Setting linesize..\n");
+    if (image_height > 0)
+      linesize = -p->linesize[0];
+    else
+      linesize = p->linesize[0];
+    printf("Linesize set to %d\n", linesize);
+
+    printf("Starting at first pixel\n");
     // start at the first pixel of data and get the line size of the image
     ptr = p->data[0];
-    linesize = p->linesize[0];
 
-    /* Line size in file multiple of 4 */
-    n = ((avctx->width * depth + 31) / 8) & ~3;    
-
-    printf("Starting to decode data");
+    printf("Starting to decode data\n");
     // decoding pixel data
     for (i = 0; i < avctx->height; i++) {
-      memcpy(ptr, buf, n);
-      buf += n;
+      memcpy(ptr, buf, linesize);
+      buf += linesize;
       ptr += linesize;
     }
 

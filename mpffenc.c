@@ -44,25 +44,22 @@ static int mpff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     }
 
     const AVFrame * const p = pict;
-    int n_bytes_image, n_bytes_per_row, n_bytes, i, header_size, ret;
+    int n_bytes_image, n_bytes_per_row, n_bytes, i, header_size, ret, linesize;
     const uint32_t *pal = NULL;
     uint32_t palette256[256];
-    int pal_entries = 0;
     int bit_count = avctx->bits_per_coded_sample;
     uint8_t *ptr, *buf;
 
     avctx->coded_frame->pict_type = AV_PICTURE_TYPE_I;
     avctx->coded_frame->key_frame = 1;
 
-    // set the palette for 8 bit color
-    av_assert1(bit_count == 8);
+    // set the palette and pixel format for 8 bit color
     avpriv_set_systematic_pal2(palette256, avctx->pix_fmt);
     pal = palette256;
 
-    pal_entries = 1 << bit_count;
-    n_bytes_per_row = ((int64_t)avctx->width * (int64_t)bit_count + 7LL) >> 3LL;
-    n_bytes_image = avctx->height * (n_bytes_per_row);
-    header_size = (pal_entries << 2);
+    n_bytes_per_row = avctx->width * bit_count;
+    n_bytes_image = avctx->height * n_bytes_per_row;
+    header_size = 12;
     n_bytes = n_bytes_image + header_size;
 
     // try to allocate a packet
@@ -77,18 +74,16 @@ static int mpff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     bytestream_put_byte(&buf, 'F');
     bytestream_put_le32(&buf, avctx->width);         
     bytestream_put_le32(&buf, avctx->height);
-    
-    for (i = 0; i < pal_entries; i++)
-        bytestream_put_le32(&buf, pal[i] & 0xFFFFFF);
 
     // encode MPFF from top to bottom.
     ptr = p->data[0];
     buf = pkt->data + header_size;
+    linesize = p->linesize[0];
     for(i = 0; i < avctx->height; i++) {
         memcpy(buf, ptr, n_bytes_per_row);
   
         buf += n_bytes_per_row;
-        ptr += p->linesize[0]; 
+        ptr += linesize; 
     }
 
     pkt->flags |= AV_PKT_FLAG_KEY;
