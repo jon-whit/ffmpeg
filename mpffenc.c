@@ -50,7 +50,7 @@ static int mpff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     }
 
     const AVFrame * const p = pict;
-    int n_bytes_image, n_bytes_per_row, n_bytes, i, header_size, ret, linesize;
+    int n_bytes_image, n_bytes_per_row, n_bytes, header_size, ret, linesize;
     const uint32_t *pal = NULL;
     uint32_t palette256[256];
     int bit_count = avctx->bits_per_coded_sample;

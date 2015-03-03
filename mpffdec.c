@@ -60,7 +60,7 @@ static int mpff_decode_frame(AVCodecContext *avctx,
     // get image width and height in bytes.
     image_width  = bytestream_get_be32(&buf);
     image_height = bytestream_get_be32(&buf);
-   
+
     // assign width and height as an absolute value
     avctx->width  = image_width > 0 ? image_width : -image_width;
     avctx->height = image_height > 0 ? image_height : -image_height;
