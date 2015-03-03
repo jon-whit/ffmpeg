@@ -38,7 +38,7 @@ static int mpff_decode_frame(AVCodecContext *avctx,
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;
     AVFrame *p         = data;
-    int image_width, image_height, ret;
+    int image_width, image_height, ret, n_bytes_per_row, pad_bytes_per_row;
     int i, linesize;
     uint8_t *ptr;
 
@@ -56,44 +56,32 @@ static int mpff_decode_frame(AVCodecContext *avctx,
     // get image width and height in bytes.
     image_width  = bytestream_get_be32(&buf);
     image_height = bytestream_get_be32(&buf);
-
-    //num_bytes_per_row = image_width * 8;
-    //pad_bytes_per_row = (4-num_bytes_per_row) & 3;
    
-    //printf("setting image width and image height\n");
+    // assign width and height as an absolute value
     avctx->width  = image_width > 0 ? image_width : -image_width;
-    //printf("width set to %d\n", avctx->width);
     avctx->height = image_height > 0 ? image_height : -image_height;
-    //printf("height set to %d\n", avctx->height);
-    
+   
     // set the pixel format.
     avctx->pix_fmt = AV_PIX_FMT_RGB8;
 
-    // get the buffer for the frame
+    // get the buffer for the frame and set the
+    // picture type
     if ((ret = ff_get_buffer(avctx, p, 0)) < 0)
         return ret;
     p->pict_type = AV_PICTURE_TYPE_I;
     p->key_frame = 1;
     
-    //printf("Setting linesize..\n");
+    n_bytes_per_row = 8 * avctx->width;
+    pad_bytes_per_row = (4 - n_bytes_per_row) & 3;
+
+    // get the line size of the image
     linesize = p->linesize[0];
-    //printf("Linesize set to %d\n", linesize);
 
-    //printf("Starting at first pixel\n");
-    // start at the first pixel of data and get the line size of the image
+    // start at the first pixel of data
     ptr = p->data[0];
-
-    //printf("Starting to decode data\n");
-    // decoding pixel data
-    /*for (i = 0; i < avctx->height; i++) {
-      memcpy(ptr, buf, n_bytes_per_row);
-      buf += n_bytes_per_row;
-      ptr += linesize;
-    }*/
     memcpy(ptr, buf, linesize * avctx->height);
 
     *got_frame = 1;
-    
     return buf_size;
 }
 

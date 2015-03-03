@@ -44,7 +44,7 @@ static int mpff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     }
 
     const AVFrame * const p = pict;
-    int n_bytes_image, n_bytes_per_row, n_bytes, i, header_size, ret, linesize;
+    int n_bytes_image, n_bytes_per_row, n_bytes, i, header_size, ret, linesize, pad_bytes_per_row;
     const uint32_t *pal = NULL;
     uint32_t palette256[256];
     int bit_count = avctx->bits_per_coded_sample;
@@ -58,6 +58,7 @@ static int mpff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     pal = palette256;
 
     n_bytes_per_row = avctx->width * bit_count;
+    pad_bytes_per_row = (4 - n_bytes_per_row) & 3;
     n_bytes_image = avctx->height * n_bytes_per_row;
     header_size = 12;
     n_bytes = n_bytes_image + header_size;
@@ -72,23 +73,22 @@ static int mpff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     bytestream_put_byte(&buf, 'P');                   
     bytestream_put_byte(&buf, 'F');
     bytestream_put_byte(&buf, 'F');
-    printf("width is set to: %d\n", avctx->width);
     bytestream_put_be32(&buf, avctx->width);      
-    printf("height is set to: %d\n", avctx->height);   
     bytestream_put_be32(&buf, avctx->height);
 
-    // encode MPFF from top to bottom.
+    // encode MPFF from top to bottom by copying
+    // the remaining pixel data.
     ptr = p->data[0];
     buf = pkt->data + header_size;
     linesize = p->linesize[0];
-    printf("linesize is set to: %d\n", linesize);
-    memcpy(buf, ptr, linesize * avctx->height);
-    /*for(i = 0; i < avctx->height; i++) {
-        memcpy(buf, ptr, n_bytes_per_row);
-  
-        buf += n_bytes_per_row;
-        ptr += linesize; 
-    }*/
+    
+    for(i=0; i < avctx->height; i++) {
+      memcpy(buf, ptr, n_bytes_per_row);
+      buf += n_bytes_per_row;
+      memset(buf, 0, pad_bytes_per_row);
+      buf += pad_bytes_per_row;
+      ptr += linesize;
+    }
 
     pkt->flags |= AV_PKT_FLAG_KEY;
     *got_packet = 1;
