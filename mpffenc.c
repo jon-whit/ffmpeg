@@ -24,13 +24,19 @@
 #include "internal.h"
 
 static av_cold int mpff_encode_init(AVCodecContext *avctx){
-    avctx->bits_per_coded_sample = 8;
 
-    avctx->coded_frame = av_frame_alloc();
-    if (!avctx->coded_frame)
-        return AVERROR(ENOMEM);
+  if (avctx->pix_fmt != AV_PIX_FMT_RGB8) {
+    av_log(avctx, AV_LOG_INFO, "unsupported pixel format\n");
+    return AVERROR(EINVAL);
+  }
 
-    return 0;
+  avctx->bits_per_coded_sample = 8;
+
+  avctx->coded_frame = av_frame_alloc();
+  if (!avctx->coded_frame)
+      return AVERROR(ENOMEM);
+
+  return 0;
 }
 
 static int mpff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
@@ -44,7 +50,7 @@ static int mpff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     }
 
     const AVFrame * const p = pict;
-    int n_bytes_image, n_bytes_per_row, n_bytes, i, header_size, ret, linesize, pad_bytes_per_row;
+    int n_bytes_image, n_bytes_per_row, n_bytes, i, header_size, ret, linesize;
     const uint32_t *pal = NULL;
     uint32_t palette256[256];
     int bit_count = avctx->bits_per_coded_sample;
@@ -58,7 +64,6 @@ static int mpff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     pal = palette256;
 
     n_bytes_per_row = avctx->width * bit_count;
-    pad_bytes_per_row = (4 - n_bytes_per_row) & 3;
     n_bytes_image = avctx->height * n_bytes_per_row;
     header_size = 12;
     n_bytes = n_bytes_image + header_size;
@@ -81,14 +86,7 @@ static int mpff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     ptr = p->data[0];
     buf = pkt->data + header_size;
     linesize = p->linesize[0];
-    
-    for(i=0; i < avctx->height; i++) {
-      memcpy(buf, ptr, n_bytes_per_row);
-      buf += n_bytes_per_row;
-      memset(buf, 0, pad_bytes_per_row);
-      buf += pad_bytes_per_row;
-      ptr += linesize;
-    }
+    memcpy(buf, ptr, linesize * avctx->height);
 
     pkt->flags |= AV_PKT_FLAG_KEY;
     *got_packet = 1;

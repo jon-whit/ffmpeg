@@ -38,10 +38,14 @@ static int mpff_decode_frame(AVCodecContext *avctx,
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;
     AVFrame *p         = data;
-    int image_width, image_height, ret, n_bytes_per_row, pad_bytes_per_row;
-    int i, linesize;
+    int image_width, image_height, ret;
+    int linesize;
     uint8_t *ptr;
 
+    if (buf_size < 12) {
+      av_log(avctx, AV_LOG_ERROR, "buf size too small (%d)\n", buf_size);
+      return AVERROR_INVALIDDATA;
+    }
     
     // if the first 4 bytes don't match our file header, return an error.
     if (bytestream_get_byte(&buf) != 'M' ||
@@ -70,9 +74,6 @@ static int mpff_decode_frame(AVCodecContext *avctx,
         return ret;
     p->pict_type = AV_PICTURE_TYPE_I;
     p->key_frame = 1;
-    
-    n_bytes_per_row = 8 * avctx->width;
-    pad_bytes_per_row = (4 - n_bytes_per_row) & 3;
 
     // get the line size of the image
     linesize = p->linesize[0];
